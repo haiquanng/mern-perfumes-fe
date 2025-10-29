@@ -1,30 +1,30 @@
-import { useState } from 'react';
-import { api } from '../api/client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { useState, useRef } from 'react';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
-import { Sparkles, Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, ImagePlus, X, Square } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { streamingChat } from '../services/ai';
 
 type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  image?: string; // base64 encoded image
 };
 
 export default function GeminiAssistant() {
   const [query, setQuery] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! I\'m your AI fragrance assistant. I can help you discover new perfumes, answer questions about scents, and provide personalized recommendations. What would you like to know?',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const suggestedQuestions = [
     'Recommend a perfume for summer',
@@ -33,42 +33,98 @@ export default function GeminiAssistant() {
     'Best perfumes for evening wear'
   ];
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setSelectedImage(base64String);
+      setImagePreview(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   async function sendMessage() {
-    if (!query.trim()) return;
+    if (!query.trim() && !selectedImage) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: query,
-      timestamp: new Date()
+      content: query || '📷 Image attached',
+      timestamp: new Date(),
+      image: selectedImage || undefined,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setQuery('');
+    const imageToSend = selectedImage;
+    setSelectedImage(null);
+    setImagePreview(null);
     setIsLoading(true);
 
+    // Create placeholder for assistant message
+    const assistantId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantId,
+      role: 'assistant',
+      content: '...',
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, assistantMessage]);
+
     try {
-      const res = await api.post('/ai/chat', { query: userMessage.content });
-      const aiReply = res.data?.reply || 'I apologize, but I\'m having trouble processing your request right now.';
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: aiReply,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch {
-      const fallbackMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'The Gemini AI integration is not yet connected to the backend. In production, I would provide intelligent recommendations based on your preferences, fragrance notes, and user reviews.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, fallbackMessage]);
+      let fullResponse = '';
+      const controller = new AbortController();
+      abortRef.current = controller;
+      await streamingChat(
+        {
+          query: userMessage.content,
+          includeContext: true,
+          image: imageToSend || undefined,
+        },
+        (chunk) => {
+          fullResponse += chunk;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId ? { ...msg, content: fullResponse } : msg
+            )
+          );
+        },
+        controller.signal
+      );
+    } catch (error) {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantId
+            ? {
+                ...msg,
+                content:
+                  'I apologize, but I\'m having trouble processing your request right now. Please try again.',
+              }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
+      abortRef.current = null;
     }
   }
 
@@ -84,43 +140,46 @@ export default function GeminiAssistant() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">AI Fragrance Assistant</h1>
-              <p className="text-gray-600">Powered by Gemini AI</p>
-            </div>
-          </div>
-        </div>
-
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-sm">Suggested Questions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {suggestedQuestions.map((question, idx) => (
-                <Badge
-                  key={idx}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-purple-50 px-3 py-2"
-                  onClick={() => useSuggestedQuestion(question)}
-                >
-                  {question}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         <Card className="mb-6">
           <CardContent className="p-0">
             <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+              {messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full space-y-6">
+                  <div className="text-center space-y-3">
+                    <div className="flex justify-center">
+                      <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-full">
+                        <Bot className="w-8 h-8" />
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-800">
+                      AI Fragrance Assistant
+                    </h3>
+                    <p className="text-gray-600 max-w-md">
+                      This AI assistant uses Google's Gemini API to provide intelligent fragrance recommendations, answer questions about perfumes, and help you discover your perfect scent.
+                    </p>
+                  </div>
+                  <div className="space-y-2 w-full max-w-md">
+                    <p className="text-sm font-medium text-gray-700 text-center">
+                      Suggested Questions
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {suggestedQuestions.map((question, idx) => (
+                        <Badge
+                          key={idx}
+                          variant="outline"
+                          className="cursor-pointer hover:bg-purple-50 hover:border-purple-300 px-3 py-2 transition-colors"
+                          onClick={() => useSuggestedQuestion(question)}
+                        >
+                          {question}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -140,7 +199,32 @@ export default function GeminiAssistant() {
                           : 'bg-white border border-gray-200'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      {message.image && (
+                        <div className="mb-2">
+                          <img
+                            src={message.image}
+                            alt="User uploaded"
+                            className="max-w-full rounded-lg max-h-64 object-contain"
+                          />
+                        </div>
+                      )}
+                      {message.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          {message.content === '...' ? (
+                            <div className="flex items-center gap-1">
+                              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                          ) : (
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {message.content}
+                            </ReactMarkdown>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -149,26 +233,42 @@ export default function GeminiAssistant() {
                 </div>
               ))}
 
-              {isLoading && (
-                <div className="flex gap-3">
-                  <Avatar>
-                    <AvatarFallback className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-                      <Bot className="w-5 h-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="border-t p-4">
+              {imagePreview && (
+                <div className="mb-3 relative inline-block">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="max-h-32 rounded-lg border border-gray-300"
+                  />
+                  <button
+                    onClick={removeImage}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="shrink-0"
+                >
+                  <ImagePlus className="w-5 h-5" />
+                </Button>
                 <Textarea
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -178,32 +278,28 @@ export default function GeminiAssistant() {
                   className="resize-none"
                   disabled={isLoading}
                 />
-                <Button
-                  onClick={sendMessage}
-                  disabled={isLoading || !query.trim()}
-                  size="lg"
-                  className="px-6"
-                >
-                  <Send className="w-5 h-5" />
-                </Button>
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    onClick={() => { abortRef.current?.abort(); setIsLoading(false); }}
+                    variant="destructive"
+                    size="lg"
+                    className="px-6 shrink-0"
+                  >
+                    <Square className="w-5 h-5" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!query.trim() && !selectedImage}
+                    size="lg"
+                    className="px-6 shrink-0"
+                  >
+                    <Send className="w-5 h-5" />
+                  </Button>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Press Enter to send, Shift+Enter for new line
-              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">About This Assistant</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-gray-600">
-            <p>
-              This AI assistant uses Google's Gemini API to provide intelligent fragrance recommendations,
-              answer questions about perfumes, and help you discover scents that match your preferences.
-              It analyzes fragrance notes, user reviews, and your personal taste to make personalized suggestions.
-            </p>
           </CardContent>
         </Card>
       </div>
