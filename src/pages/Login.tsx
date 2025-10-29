@@ -18,6 +18,7 @@ export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,11 +49,10 @@ export default function Login() {
       if (isLogin) {
         const validatedData = loginSchema.parse({ email, password });
         await login(validatedData.email, validatedData.password);
-        // Redirect admin to dashboard, others to home
         const currentUser = useAuthStore.getState().user;
         navigate(currentUser && isAdmin(currentUser) ? '/admin' : '/');
       } else {
-        const validatedData = registerSchema.parse({ name, email, password });
+        const validatedData = registerSchema.parse({ name, email, password, confirmPassword });
         await register(validatedData.email, validatedData.password, validatedData.name);
         const currentUser = useAuthStore.getState().user;
         navigate(currentUser && isAdmin(currentUser) ? '/admin' : '/');
@@ -80,14 +80,10 @@ export default function Login() {
       <div className="bg-white overflow-y-auto flex flex-col">
         <div className="p-6 sm:p-10 flex-1 flex flex-col justify-center max-w-lg mx-auto w-full">
           {/* Logo/Brand */}
-          <div className="mb-8">
-            <Link to="/" aria-label="Go to home" className="inline-flex items-center gap-2 mb-8">
-              <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold">P</span>
-              </div>
-              <span className="text-xl font-semibold text-gray-900">Perfumery</span>
+          <div className="mb-2">
+            <Link to="/" aria-label="Go to home" className="inline-flex items-center gap-2">
+              <img src="/images/logo.svg" alt="Perfumery" className="w-full h-12" />
             </Link>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Get Started Now</h1>
           </div>
 
           <Card className="shadow-none border-0 p-0">
@@ -157,6 +153,23 @@ export default function Login() {
                   <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
                 )}
               </div>
+
+              {!isLogin && (
+                <div>
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700 mb-1 block">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`h-11 ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                    required
+                    minLength={6}
+                  />
+                  {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+                </div>
+              )}
 
               {!isLogin && (
                 <div className="flex items-start gap-2">

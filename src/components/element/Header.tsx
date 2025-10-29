@@ -3,7 +3,7 @@ import { isAdmin } from '../../utils/roles';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
-import { LogOut, User, LayoutDashboard, Sparkles, Home, Menu, X, ShoppingCart } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Sparkles, Home, Menu, X, ShoppingCart, UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '../ui/use-toast';
@@ -48,12 +48,7 @@ export default function Header() {
           {/* Left Section - Logo & Nav Links */}
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition">
-                <span className="text-white font-bold text-xl">P</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent hidden sm:block">
-                Perfumery
-              </span>
+              <img src="/images/logo.svg" alt="logo" className="w-full h-10" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -123,18 +118,11 @@ export default function Header() {
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-50 transition"
                 >
                   <Avatar className="w-9 h-9 ring-2 ring-purple-100">
-                    <AvatarImage src={undefined} alt={user?.name || user?.email || 'User'} />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white text-sm font-semibold">
-                      {getUserInitials()}
-                    </AvatarFallback>
+                    <UserIcon className="w-full h-full" />
                   </Avatar>
                   <div className="hidden lg:block text-left">
                     <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                       {user?.name || 'User'}
-                      {/* role check if available */}
-                      {user && isAdmin(user as any) && (
-                        <Badge variant="secondary" className="text-xs">Admin</Badge>
-                      )}
                     </div>
                   </div>
                 </button>

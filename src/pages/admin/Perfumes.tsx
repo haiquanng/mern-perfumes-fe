@@ -10,11 +10,10 @@ import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Package, Edit, Trash2, Plus, Search } from 'lucide-react';
+import { Edit, Trash2, Plus, Search } from 'lucide-react';
 import { useToast } from '../../components/ui/use-toast';
 import {
   AlertDialog,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -23,6 +22,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction
 } from '../../components/ui/alert-dialog';
+import { perfumeSchema } from '../../validators/perfume';
 
 interface Perfume {
   _id: string;
@@ -71,6 +71,7 @@ export default function AdminPerfumes() {
     targetAudience: '',
     uri: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const { data: perfumes = [], isLoading } = useQuery<Perfume[]>({
     queryKey: ['perfumes'],
@@ -88,6 +89,25 @@ export default function AdminPerfumes() {
     },
   });
 
+  const parseAndSetErrors = (error: any) => {
+    const serverErrors = error?.response?.data?.errors || error?.response?.data;
+    let fieldMap: Record<string, string> = {};
+    if (Array.isArray(serverErrors)) {
+      fieldMap = serverErrors.reduce((acc: Record<string, string>, err: any) => {
+        const raw = (err.field || '').toString();
+        const key = raw.includes('.') ? raw.split('.').pop() : raw; // e.g. body.uri -> uri
+        if (key) acc[key] = err.message || 'Invalid';
+        return acc;
+      }, {});
+    }
+    setFormErrors(fieldMap);
+
+    const firstMsg = Array.isArray(serverErrors) && serverErrors[0]?.message
+      ? serverErrors[0].message
+      : (error?.response?.data?.message || 'Validation failed');
+    toast({ title: 'Validation error', description: firstMsg });
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       await api.post('/perfumes', data);
@@ -99,10 +119,7 @@ export default function AdminPerfumes() {
       resetForm();
     },
     onError: (error: any) => {
-      toast({
-        title: 'Failed to create',
-        description: error?.response?.data?.message || 'Failed to create perfume',
-      });
+      parseAndSetErrors(error);
     },
   });
 
@@ -118,10 +135,7 @@ export default function AdminPerfumes() {
       resetForm();
     },
     onError: (error: any) => {
-      toast({
-        title: 'Failed to update',
-        description: error?.response?.data?.message || 'Failed to update perfume',
-      });
+      parseAndSetErrors(error);
     },
   });
 
@@ -154,6 +168,7 @@ export default function AdminPerfumes() {
       targetAudience: '',
       uri: '',
     });
+    setFormErrors({});
   };
 
   const handleEdit = (perfume: Perfume) => {
@@ -170,11 +185,13 @@ export default function AdminPerfumes() {
       targetAudience: perfume.targetAudience,
       uri: perfume.uri || '',
     });
+    setFormErrors({});
     setShowDialog(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrors({});
     const submitData = {
       perfumeName: formData.perfumeName,
       brand: formData.brand,
@@ -187,6 +204,20 @@ export default function AdminPerfumes() {
       targetAudience: formData.targetAudience,
       uri: formData.uri || undefined,
     };
+
+    // Client-side validation with Zod
+    const parsed = perfumeSchema.safeParse(submitData);
+    if (!parsed.success) {
+      const fieldMap: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0]?.toString();
+        if (key) fieldMap[key] = issue.message;
+      }
+      setFormErrors(fieldMap);
+      const first = parsed.error.issues[0];
+      toast({ title: 'Validation error', description: first?.message || 'Please check your input' });
+      return;
+    }
 
     if (editingPerfume) {
       setPendingUpdateData({ id: editingPerfume._id, data: submitData });
@@ -303,12 +334,16 @@ export default function AdminPerfumes() {
                           value={formData.perfumeName}
                           onChange={(e) => setFormData({ ...formData, perfumeName: e.target.value })}
                           required
+                          className={formErrors.perfumeName ? 'border-red-500 focus-visible:ring-red-500' : ''}
                         />
+                        {formErrors.perfumeName && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.perfumeName}</p>
+                        )}
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-700">Brand *</Label>
                         <Select value={formData.brand} onValueChange={(value) => setFormData({ ...formData, brand: value })}>
-                          <SelectTrigger>
+                          <SelectTrigger className={formErrors.brand ? 'border-red-500 focus-visible:ring-red-500' : ''}>
                             <SelectValue placeholder="Select brand" />
                           </SelectTrigger>
                           <SelectContent>
@@ -319,6 +354,9 @@ export default function AdminPerfumes() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {formErrors.brand && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.brand}</p>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -330,7 +368,11 @@ export default function AdminPerfumes() {
                           value={formData.price}
                           onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                           required
+                          className={formErrors.price ? 'border-red-500 focus-visible:ring-red-500' : ''}
                         />
+                        {formErrors.price && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.price}</p>
+                        )}
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-700">Volume (ml) *</Label>
@@ -339,7 +381,11 @@ export default function AdminPerfumes() {
                           value={formData.volume}
                           onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
                           required
+                          className={formErrors.volume ? 'border-red-500 focus-visible:ring-red-500' : ''}
                         />
+                        {formErrors.volume && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.volume}</p>
+                        )}
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-700">Stock *</Label>
@@ -348,7 +394,11 @@ export default function AdminPerfumes() {
                           value={formData.stock}
                           onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                           required
+                          className={formErrors.stock ? 'border-red-500 focus-visible:ring-red-500' : ''}
                         />
+                        {formErrors.stock && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.stock}</p>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -358,7 +408,7 @@ export default function AdminPerfumes() {
                           value={formData.concentration}
                           onValueChange={(value) => setFormData({ ...formData, concentration: value })}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className={formErrors.concentration ? 'border-red-500 focus-visible:ring-red-500' : ''}>
                             <SelectValue placeholder="Select concentration" />
                           </SelectTrigger>
                           <SelectContent>
@@ -368,6 +418,9 @@ export default function AdminPerfumes() {
                             <SelectItem value="Parfum">Parfum</SelectItem>
                           </SelectContent>
                         </Select>
+                        {formErrors.concentration && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.concentration}</p>
+                        )}
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-700">Target Audience *</Label>
@@ -375,7 +428,7 @@ export default function AdminPerfumes() {
                           value={formData.targetAudience}
                           onValueChange={(value) => setFormData({ ...formData, targetAudience: value })}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className={formErrors.targetAudience ? 'border-red-500 focus-visible:ring-red-500' : ''}>
                             <SelectValue placeholder="Select audience" />
                           </SelectTrigger>
                           <SelectContent>
@@ -384,6 +437,9 @@ export default function AdminPerfumes() {
                             <SelectItem value="unisex">Unisex</SelectItem>
                           </SelectContent>
                         </Select>
+                        {formErrors.targetAudience && (
+                          <p className="mt-1 text-xs text-red-600">{formErrors.targetAudience}</p>
+                        )}
                       </div>
                     </div>
                     <div>
@@ -393,7 +449,11 @@ export default function AdminPerfumes() {
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         rows={3}
                         required
+                        className={formErrors.description ? 'border-red-500 focus-visible:ring-red-500' : ''}
                       />
+                      {formErrors.description && (
+                        <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
+                      )}
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-700">Ingredients</Label>
@@ -409,7 +469,11 @@ export default function AdminPerfumes() {
                         value={formData.uri}
                         onChange={(e) => setFormData({ ...formData, uri: e.target.value })}
                         placeholder="https://example.com/image.jpg"
+                        className={formErrors.uri ? 'border-red-500 focus-visible:ring-red-500' : ''}
                       />
+                      {formErrors.uri && (
+                        <p className="mt-1 text-xs text-red-600">Invalid image URL</p>
+                      )}
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                       <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>

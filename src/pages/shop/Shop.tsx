@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../api/client';
 import { usePerfumes } from '../../hooks/usePerfumes';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -10,45 +12,64 @@ import { Pagination } from '../../components/ui/pagination';
 import { Search, Star, Filter, SortAsc, SortDesc, Grid, List } from 'lucide-react';
 import ProductCard from '../../components/ProductCard';
 
-const ITEMS_PER_PAGE = 12;
+const DEFAULT_ITEMS_PER_PAGE = 12;
+
+type Brand = { _id: string; brandName: string };
 
 export default function Shop() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialAudience = searchParams.get('targetAudience') || 'all';
+  const initialBrand = searchParams.get('brand') || 'all';
+  const initialConcentration = searchParams.get('concentration') || 'all';
+  const initialQ = searchParams.get('q') || '';
+  const initialPage = parseInt(searchParams.get('page') || '1') || 1;
+  const initialLimit = parseInt(searchParams.get('limit') || String(DEFAULT_ITEMS_PER_PAGE)) || DEFAULT_ITEMS_PER_PAGE;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('all');
+  const [selectedConcentration, setSelectedConcentration] = useState('all');
+  const [selectedAudience, setSelectedAudience] = useState('all');
   const [sortBy, setSortBy] = useState('default');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(DEFAULT_ITEMS_PER_PAGE);
 
-  const { data: perfumes, isLoading } = usePerfumes({ q: searchQuery });
+  // Initialize state from URL once
+  useEffect(() => {
+    setSelectedAudience(initialAudience);
+    setSelectedBrand(initialBrand);
+    setSelectedConcentration(initialConcentration);
+    setSearchQuery(initialQ);
+    setCurrentPage(initialPage);
+    setItemsPerPage(initialLimit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Get unique brands for filter
-  const brands = useMemo(() => {
-    if (!perfumes) return [];
-    const brandSet = new Set<string>();
-    perfumes.forEach(perfume => {
-      const brandName = typeof perfume.brand === 'object' ? perfume.brand.brandName : perfume.brand;
-      brandSet.add(brandName);
-    });
-    return Array.from(brandSet).sort();
-  }, [perfumes]);
+  const { data: perfumes, isLoading } = usePerfumes({
+    q: searchQuery,
+    brand: selectedBrand !== 'all' ? selectedBrand : undefined,
+    concentration: selectedConcentration !== 'all' ? selectedConcentration : undefined,
+    targetAudience: selectedAudience !== 'all' ? selectedAudience : undefined,
+  });
 
-  // Filter and sort perfumes
+  const { data: brands = [] } = useQuery<Brand[]>({
+    queryKey: ['shop-brands'],
+    queryFn: async () => {
+      const { data } = await api.get('/brands');
+      return data;
+    },
+  });
+
+  // Filter and sort perfumes (client-side price range + sort)
   const filteredAndSortedPerfumes = useMemo(() => {
     if (!perfumes) return [];
 
     let filtered = perfumes.filter(perfume => {
-      // Brand filter
-      if (selectedBrand !== 'all') {
-        const brandName = typeof perfume.brand === 'object' ? perfume.brand.brandName : perfume.brand;
-        if (brandName !== selectedBrand) return false;
-      }
-
       // Price range filter
       if (priceRange.min && perfume.price < parseFloat(priceRange.min)) return false;
       if (priceRange.max && perfume.price > parseFloat(priceRange.max)) return false;
-
       return true;
     });
 
@@ -90,18 +111,35 @@ export default function Shop() {
     }
 
     return filtered;
-  }, [perfumes, selectedBrand, sortBy, sortOrder, priceRange]);
+  }, [perfumes, sortBy, sortOrder, priceRange]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredAndSortedPerfumes.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedPerfumes.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
   const paginatedPerfumes = filteredAndSortedPerfumes.slice(startIndex, endIndex);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBrand, searchQuery, sortBy, sortOrder, priceRange]);
+  }, [selectedBrand, selectedConcentration, selectedAudience, searchQuery, sortBy, sortOrder, priceRange, itemsPerPage]);
+
+  // Smooth scroll to top on page change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
+  // Keep URL in sync with filters and pagination
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (searchQuery) params.q = searchQuery;
+    if (selectedBrand !== 'all') params.brand = selectedBrand;
+    if (selectedConcentration !== 'all') params.concentration = selectedConcentration;
+    if (selectedAudience !== 'all') params.targetAudience = selectedAudience;
+    if (currentPage > 1) params.page = String(currentPage);
+    if (itemsPerPage !== DEFAULT_ITEMS_PER_PAGE) params.limit = String(itemsPerPage);
+    setSearchParams(params, { replace: true });
+  }, [searchQuery, selectedBrand, selectedConcentration, selectedAudience, currentPage, itemsPerPage, setSearchParams]);
 
   const renderStars = (rating: number) => {
     return (
@@ -164,11 +202,44 @@ export default function Shop() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Brands</SelectItem>
-                      {brands.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                          {brand}
+                      {brands.map((b) => (
+                        <SelectItem key={b._id} value={b._id}>
+                          {b.brandName}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Concentration Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Concentration</label>
+                  <Select value={selectedConcentration} onValueChange={setSelectedConcentration}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="EDP">EDP</SelectItem>
+                      <SelectItem value="EDT">EDT</SelectItem>
+                      <SelectItem value="EDC">EDC</SelectItem>
+                      <SelectItem value="Parfum">Parfum</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Audience Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
+                  <Select value={selectedAudience} onValueChange={setSelectedAudience}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="unisex">Unisex</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -238,6 +309,8 @@ export default function Shop() {
                   onClick={() => {
                     setSearchQuery('');
                     setSelectedBrand('all');
+                    setSelectedConcentration('all');
+                    setSelectedAudience('all');
                     setSortBy('default');
                     setSortOrder('asc');
                     setPriceRange({ min: '', max: '' });
@@ -259,7 +332,7 @@ export default function Shop() {
                 <p className="text-gray-600">
                   Showing {startIndex + 1}-{Math.min(endIndex, filteredAndSortedPerfumes.length)} of {filteredAndSortedPerfumes.length} products
                 </p>
-                {(selectedBrand !== 'all' || searchQuery || priceRange.min || priceRange.max) && (
+                {(selectedBrand !== 'all' || selectedConcentration !== 'all' || selectedAudience !== 'all' || searchQuery || priceRange.min || priceRange.max) && (
                   <Badge variant="secondary" className="bg-pink-100 text-pink-700">
                     Filtered
                   </Badge>
@@ -268,6 +341,20 @@ export default function Shop() {
 
               {/* View Mode Toggle */}
               <div className="flex items-center gap-2">
+                {/* Items per page selector */}
+                <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 mr-2">
+                  <span>Per page</span>
+                  <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(parseInt(v))}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue placeholder="12" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12">12</SelectItem>
+                      <SelectItem value="24">24</SelectItem>
+                      <SelectItem value="36">36</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'outline'}
                   size="sm"
@@ -284,6 +371,15 @@ export default function Shop() {
                 </Button>
               </div>
             </div>
+
+            {/* Top Pagination */}
+            {!isLoading && filteredAndSortedPerfumes.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
 
             {/* Products Grid/List */}
             {isLoading ? (
@@ -311,6 +407,8 @@ export default function Shop() {
                     onClick={() => {
                       setSearchQuery('');
                       setSelectedBrand('all');
+                      setSelectedConcentration('all');
+                      setSelectedAudience('all');
                       setSortBy('default');
                       setSortOrder('asc');
                       setPriceRange({ min: '', max: '' });
@@ -333,6 +431,7 @@ export default function Shop() {
                     />
                   ))}
                 </div>
+                {/* Bottom Pagination */}
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}

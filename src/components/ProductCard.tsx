@@ -15,7 +15,7 @@ type ProductCardProps = {
 
 export default function ProductCard({ perfume, to, variant = 'default', viewMode = 'grid', highlightLabel }: ProductCardProps) {
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
-    to ? <Link to={to}>{children}</Link> : <>{children}</>;
+    to ? <Link to={to} className="block h-full">{children}</Link> : <>{children}</>;
 
   const getBrandName = (brand: any) => (typeof brand === 'object' ? brand.brandName : brand);
 
@@ -120,7 +120,7 @@ export default function ProductCard({ perfume, to, variant = 'default', viewMode
           )}
         </div>
 
-        <CardContent className="p-5 flex flex-col h-full">
+        <CardContent className="p-5 flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <Badge variant="secondary" className="text-xs">
               {getBrandName(perfume.brand)}
@@ -130,8 +130,8 @@ export default function ProductCard({ perfume, to, variant = 'default', viewMode
             </Badge>
           </div>
 
-          <h3 className={`font-semibold mb-2 group-hover:text-pink-600 transition flex-grow ${
-            variant === 'compact' ? 'text-base line-clamp-2' : 'text-base line-clamp-2 min-h-[3rem]'
+          <h3 className={`font-semibold mb-2 group-hover:text-pink-600 transition ${
+            variant === 'compact' ? 'text-base line-clamp-2' : 'text-base line-clamp-2 overflow-hidden'
           }`}>
             {perfume.perfumeName}
           </h3>
@@ -140,10 +140,10 @@ export default function ProductCard({ perfume, to, variant = 'default', viewMode
             {rating}
           </div>
 
-          <div className="flex items-baseline justify-between mt-auto">
+          <div className="flex flex-col gap-2 items-baseline justify-between">
             <span className="text-2xl font-bold text-gray-900">${perfume.price.toFixed(2)}</span>
             {variant === 'default' && perfume.stock > 0 && (
-              <Button size="sm" className="bg-pink-600 hover:bg-pink-700">
+              <Button size="sm" className="bg-pink-600 hover:bg-pink-700 w-full">
                 Add to Cart
               </Button>
             )}
