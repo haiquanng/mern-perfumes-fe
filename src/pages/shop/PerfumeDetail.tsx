@@ -8,11 +8,13 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import CommentSection from '../../components/CommentSection';
-import { Star, Package, Droplet, Users, Sparkles, ChevronRight, Heart, Share2, ShoppingCart, Shield, Truck, RotateCcw } from 'lucide-react';
+import { Star, Package, Droplet, Users, Sparkles, ChevronRight, Heart, Share2, ShoppingCart, Shield, Truck, RotateCcw, Minus, Plus } from 'lucide-react';
+import ProductCard from '../../components/ProductCard';
 
 export default function PerfumeDetail() {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('description');
+  const [quantity, setQuantity] = useState(1);
 
   // Try API first, fallback to mock data
   const { data: perfume, isLoading } = useQuery({
@@ -105,7 +107,7 @@ export default function PerfumeDetail() {
   return (
     <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
-      <div className="bg-gray-50 border-b">
+      <div className="bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Link to="/" className="hover:text-purple-600 transition">Home</Link>
@@ -134,10 +136,22 @@ export default function PerfumeDetail() {
                 </button>
               </div>
             </div>
+
+            {/* Thumbnail strip */}
+            <div className="grid grid-cols-4 gap-3">
+              {[perfume.uri, perfume.uri, perfume.uri, perfume.uri].map((src, i) => (
+                <button
+                  key={i}
+                  className="aspect-square rounded-xl overflow-hidden bg-gray-100 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  <img src={src} alt={`thumb-${i}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Info Section */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-24">
             {/* Brand & Title */}
             <div>
               <Badge variant="secondary" className="mb-3 text-sm">
@@ -151,17 +165,46 @@ export default function PerfumeDetail() {
             </div>
 
             {/* Price & Stock */}
-            <div className="flex items-center gap-4 py-4 border-y">
+            <div className="flex items-center gap-4 py-4">
               <div className="text-4xl font-bold text-gray-900">
                 ${perfume.price.toFixed(2)}
               </div>
-              <Badge
-                variant={perfume.stock > 0 ? 'default' : 'destructive'}
-                className="text-sm px-4 py-1.5"
-              >
-                {perfume.stock > 0 ? `${perfume.stock} in stock` : 'Out of stock'}
-              </Badge>
+              {perfume.stock > 0 ? (
+                <span className="text-sm font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-full">
+                  {perfume.stock} in stock
+                </span>
+              ) : (
+                <span className="text-sm font-medium text-red-700 bg-red-50 px-3 py-1.5 rounded-full">
+                  Out of stock
+                </span>
+              )}
             </div>
+
+            {/* Quantity Selector */}
+            {perfume.stock > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">Quantity</span>
+                <div className="flex items-center rounded-lg bg-gray-100">
+                  <button
+                    aria-label="Decrease"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="p-2 text-gray-700 hover:bg-gray-200 rounded-l-lg"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <div className="w-10 text-center text-sm font-medium text-gray-900">
+                    {quantity}
+                  </div>
+                  <button
+                    aria-label="Increase"
+                    onClick={() => setQuantity((q) => Math.min(perfume.stock, q + 1))}
+                    className="p-2 text-gray-700 hover:bg-gray-200 rounded-r-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Product Specs */}
             <div className="grid grid-cols-3 gap-4">
@@ -193,11 +236,11 @@ export default function PerfumeDetail() {
             <div className="space-y-3">
               <Button
                 size="lg"
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 h-14 text-lg"
+                className="w-full h-14 text-lg"
                 disabled={perfume.stock === 0}
               >
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                {perfume.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                {perfume.stock > 0 ? `Add ${quantity} to Cart` : 'Out of Stock'}
               </Button>
               <Button
                 size="lg"
@@ -208,23 +251,23 @@ export default function PerfumeDetail() {
               </Button>
             </div>
 
-            {/* Trust Badges */}
-            <div className="grid grid-cols-3 gap-3 pt-4">
+            {/* Trust / Info box */}
+            <div className="rounded-xl p-4 grid grid-cols-3 gap-3 bg-gray-50">
               <div className="flex flex-col items-center text-center gap-1">
-                <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-purple-600" />
+                <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-indigo-600" />
                 </div>
                 <span className="text-xs text-gray-600">Authentic</span>
               </div>
               <div className="flex flex-col items-center text-center gap-1">
-                <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">
-                  <Truck className="w-5 h-5 text-purple-600" />
+                <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                  <Truck className="w-5 h-5 text-indigo-600" />
                 </div>
                 <span className="text-xs text-gray-600">Free Shipping</span>
               </div>
               <div className="flex flex-col items-center text-center gap-1">
-                <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">
-                  <RotateCcw className="w-5 h-5 text-purple-600" />
+                <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5 text-indigo-600" />
                 </div>
                 <span className="text-xs text-gray-600">Easy Returns</span>
               </div>
@@ -234,7 +277,7 @@ export default function PerfumeDetail() {
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-12">
-          <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+          <TabsList className="w-full justify-start border-b border-gray-200 rounded-none h-auto p-0 bg-transparent">
             <TabsTrigger value="description" className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent px-6 py-3">
               Description
             </TabsTrigger>
@@ -271,7 +314,7 @@ export default function PerfumeDetail() {
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Fragrance Notes</h3>
               {perfume.ingredients ? (
                 <div className="flex flex-wrap gap-3">
-                  {perfume.ingredients.split(',').map((ingredient, idx) => (
+                  {perfume.ingredients.split(',').map((ingredient: string, idx: number) => (
                     <Badge key={idx} variant="secondary" className="text-sm px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100">
                       {ingredient.trim()}
                     </Badge>
@@ -302,34 +345,7 @@ export default function PerfumeDetail() {
                   <h3 className="text-2xl font-bold text-gray-900 mb-6">You Might Also Like</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {similarPerfumes.map((similar) => (
-                      <Link key={similar._id} to={`/perfumes/${similar._id}`}>
-                        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-white overflow-hidden">
-                          <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                            <img
-                              src={similar.uri}
-                              alt={similar.perfumeName}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            />
-                          </div>
-                          <CardContent className="p-5">
-                            <Badge variant="secondary" className="mb-2 text-xs">
-                              {getBrandName(similar.brand)}
-                            </Badge>
-                            <h5 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-purple-600 transition">
-                              {similar.perfumeName}
-                            </h5>
-                            <div className="flex items-center justify-between">
-                              <span className="text-2xl font-bold text-gray-900">
-                                ${similar.price.toFixed(2)}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                                <span className="text-sm font-medium">{similar.averageRating.toFixed(1)}</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
+                      <ProductCard key={similar._id} perfume={similar} to={`/perfumes/${similar._id}`} variant="compact" />
                     ))}
                   </div>
                 </div>
