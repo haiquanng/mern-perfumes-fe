@@ -1,44 +1,48 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { isAdmin } from '../../utils/roles';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { LogOut, User, LayoutDashboard, Sparkles, Home, Menu, X, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
+import { useAuthStore } from '@/stores/authStore';
+import { useToast } from '../ui/use-toast';
 
 export default function Header() {
-  const { user, logout } = useAuth();
+  const { user, logout, fetchProfile } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const { toast } = useToast();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
-    setShowUserMenu(false);
+    try {
+      await logout();
+      navigate('/');
+      toast({ title: 'Signed out', description: 'You have been logged out.' });
+    } finally {
+      setShowUserMenu(false);
+    }
   };
 
   const getUserInitials = () => {
-    if (!user?.displayName) return 'U';
-    return user.displayName
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+    const base = user?.name || user?.email || 'U';
+    const parts = base.split(' ');
+    const initials = parts.length > 1 ? parts[0][0] + parts[1][0] : base[0];
+    return (initials || 'U').toUpperCase();
   };
 
   const isActive = (path: string) => location.pathname === path;
 
   const navLinks = [
     { path: '/', label: 'Home', icon: Home },
+    { path: '/shop', label: 'Shop', icon: ShoppingCart },
     { path: '/assistant', label: 'AI Assistant', icon: Sparkles },
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Left Section - Logo & Nav Links */}
@@ -119,15 +123,16 @@ export default function Header() {
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-50 transition"
                 >
                   <Avatar className="w-9 h-9 ring-2 ring-purple-100">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                    <AvatarImage src={undefined} alt={user?.name || user?.email || 'User'} />
                     <AvatarFallback className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white text-sm font-semibold">
                       {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden lg:block text-left">
                     <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                      {user.displayName || 'User'}
-                      {isAdmin(user) && (
+                      {user?.name || 'User'}
+                      {/* role check if available */}
+                      {user && isAdmin(user as any) && (
                         <Badge variant="secondary" className="text-xs">Admin</Badge>
                       )}
                     </div>
@@ -138,8 +143,8 @@ export default function Header() {
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
-                      <div className="text-sm font-semibold text-gray-900">{user.displayName || 'User'}</div>
-                      <div className="text-xs text-gray-500 truncate">{user.email}</div>
+                      <div className="text-sm font-semibold text-gray-900">{user?.name || user?.email || 'User'}</div>
+                      <div className="text-xs text-gray-500 truncate">{user?.email}</div>
                     </div>
 
                     <div className="py-2">
@@ -151,7 +156,7 @@ export default function Header() {
                         <User className="w-4 h-4" />
                         My Profile
                       </Link>
-                      {isAdmin(user) && (
+                      {isAdmin(user as any) && (
                         <Link
                           to="/admin"
                           onClick={() => setShowUserMenu(false)}

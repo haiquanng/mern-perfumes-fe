@@ -10,7 +10,7 @@ export function usePerfumes(filters?: Filters) {
     queryKey: ['perfumes', filters],
     queryFn: async () => {
       try {
-        const res = await api.get(`/perfumes${query ? `?${query}` : ''}`);
+        const res = await api.get('/perfumes');
         return res.data;
       } catch {
         return mockPerfumes;

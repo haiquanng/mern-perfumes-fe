@@ -1,13 +1,20 @@
+import React, { useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore } from '../../stores/authStore';
 import { isAdmin } from '../../utils/roles';
-import Header from '../element/Header';
 import Sidebar from '../element/Sidebar';
 
 export default function AdminLayout() {
-  const { user, loading } = useAuth();
+  const { user, isLoading, fetchProfile } = useAuthStore();
 
-  if (loading) {
+  // Fetch profile on mount if not loaded
+  useEffect(() => {
+    if (!user && !isLoading) {
+      fetchProfile();
+    }
+  }, []);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -21,8 +28,6 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
       <div className="flex">
         <Sidebar />
 

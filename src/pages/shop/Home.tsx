@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Search, Star, ArrowRight, TrendingUp, Crown, Sparkles } from 'lucide-react';
+import ProductCard from '../../components/ProductCard';
 
 export default function Home() {
   const [q, setQ] = useState('');
@@ -46,9 +47,9 @@ export default function Home() {
   const newArrivals = perfumes?.slice(4, 8) || [];
 
   return (
-    <div className="bg-white">
+    <div className="bg-gradient-to-br from-pink-50 to-rose-50 min-h-screen">
       {/* Modern Hero Section */}
-      <section className="relative bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white overflow-hidden">
+      <section className="relative bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 text-white overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -89,7 +90,7 @@ export default function Home() {
                       className="h-12 pl-12 bg-white/5 border-0 text-white placeholder:text-white/50 focus-visible:ring-white/30"
                     />
                   </div>
-                  <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-50 h-12 px-8">
+                  <Button size="lg" className="bg-white text-pink-600 hover:bg-pink-50 h-12 px-8">
                     Search
                   </Button>
                 </div>
@@ -147,8 +148,8 @@ export default function Home() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium whitespace-nowrap transition-all ${
                 selectedCategory === cat.id
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/30'
-                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-300 hover:shadow'
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30'
+                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-pink-300 hover:shadow'
               }`}
             >
               <span className="text-lg">{cat.icon}</span>
@@ -169,54 +170,29 @@ export default function Home() {
               </div>
               <p className="text-gray-600">Most loved fragrances by our customers</p>
             </div>
-            <Button variant="ghost" className="group">
-              View All
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition" />
-            </Button>
+            <Link to="/shop">
+              <Button variant="ghost" className="group text-pink-600 hover:text-pink-700">
+                View All
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition" />
+              </Button>
+            </Link>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {bestSellers.map((perfume, idx) => (
-              <Link key={perfume._id} to={`/perfumes/${perfume._id}`}>
-                <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-white overflow-hidden">
-                  {idx === 0 && (
-                    <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                      #1 Bestseller
-                    </div>
-                  )}
-
-                  <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                    <img
-                      src={perfume.uri}
-                      alt={perfume.perfumeName}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-
-                  <CardContent className="p-5">
-                    <Badge variant="secondary" className="mb-2 text-xs">
-                      {getBrandName(perfume.brand)}
-                    </Badge>
-                    <h3 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-purple-600 transition">
-                      {perfume.perfumeName}
-                    </h3>
-                    {renderStars(perfume.averageRating)}
-                    <div className="flex items-baseline justify-between mt-3">
-                      <span className="text-2xl font-bold text-gray-900">
-                        ${perfume.price.toFixed(2)}
-                      </span>
-                      <span className="text-xs text-gray-500">{perfume.volume}ml</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <ProductCard
+                key={perfume._id}
+                perfume={perfume}
+                to={`/perfumes/${perfume._id}`}
+                highlightLabel={idx === 0 ? '#1 Bestseller' : null}
+              />
             ))}
           </div>
         </section>
 
         {/* Featured Banner */}
         <section className="mb-16">
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-12 md:p-16">
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 p-12 md:p-16">
             <div className="relative z-10 max-w-2xl text-white">
               <Badge className="mb-4 bg-white/20 text-white border-0">
                 <TrendingUp className="w-3 h-3 mr-1" />
@@ -225,10 +201,10 @@ export default function Home() {
               <h2 className="text-4xl md:text-5xl font-bold mb-4">
                 Get 20% Off On Premium Collection
               </h2>
-              <p className="text-lg text-purple-100 mb-6">
+              <p className="text-lg text-pink-100 mb-6">
                 Discover exclusive fragrances from luxury brands. Limited time offer!
               </p>
-              <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-50">
+              <Button size="lg" className="bg-white text-pink-600 hover:bg-pink-50">
                 Shop Now
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -280,52 +256,7 @@ export default function Home() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {perfumes?.map((perfume) => (
-                <Link key={perfume._id} to={`/perfumes/${perfume._id}`}>
-                  <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-white overflow-hidden h-full">
-                    <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                      <img
-                        src={perfume.uri}
-                        alt={perfume.perfumeName}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      {perfume.stock === 0 && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                          <span className="bg-white px-4 py-2 rounded-full text-sm font-semibold">
-                            Out of Stock
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {getBrandName(perfume.brand)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {perfume.concentration}
-                        </Badge>
-                      </div>
-
-                      <h3 className="font-semibold text-base mb-2 line-clamp-2 h-12 group-hover:text-purple-600 transition">
-                        {perfume.perfumeName}
-                      </h3>
-
-                      {renderStars(perfume.averageRating)}
-
-                      <div className="flex items-baseline justify-between mt-3">
-                        <span className="text-2xl font-bold text-gray-900">
-                          ${perfume.price.toFixed(2)}
-                        </span>
-                        {perfume.stock > 0 && (
-                          <Button size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
-                            Add to Cart
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <ProductCard key={perfume._id} perfume={perfume} to={`/perfumes/${perfume._id}`} />
               ))}
             </div>
           )}
