@@ -10,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import CommentSection from '../../components/CommentSection';
 import { Star, Package, Droplet, Users, Sparkles, ChevronRight, Heart, Share2, ShoppingCart, Shield, Truck, RotateCcw, Minus, Plus } from 'lucide-react';
 import ProductCard from '../../components/ProductCard';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function PerfumeDetail() {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('description');
   const [quantity, setQuantity] = useState(1);
+  const { toast } = useToast();
 
   // Try API first, fallback to mock data
   const { data: perfume, isLoading } = useQuery({
@@ -44,7 +46,19 @@ export default function PerfumeDetail() {
   });
 
   // Get comments for this perfume
-  const comments = mockComments.filter(c => c.perfume === id);
+  const { data: comments = [], refetch: refetchComments } = useQuery({
+    queryKey: ['comments', id],
+    queryFn: async () => {
+      if (!id) return [] as any[];
+      try {
+        const res = await api.get(`/perfumes/${id}/comments`);
+        return res.data as any[];
+      } catch {
+        return mockComments.filter((c) => c.perfume === id) as any[];
+      }
+    },
+    enabled: !!id,
+  });
 
   // Get similar perfumes
   const similarPerfumes = aiData?.similarPerfumes
@@ -366,9 +380,18 @@ export default function PerfumeDetail() {
             <CommentSection
               perfumeId={id || ''}
               comments={comments}
-              onAddComment={(rating, content) => {
-                console.log('New comment:', { rating, content });
-                // In real app, this would call the API
+              onAddComment={async (rating, content) => {
+                if (!id) return;
+                try {
+                  await api.post(`/perfumes/${id}/comments`, { rating, content });
+                    await refetchComments();
+                    toast({
+                      title: 'Comment added successfully',
+                      description: 'Your comment has been added successfully',
+                    });
+                } catch (e) {
+                    console.error('Failed to add comment', e);
+                }
               }}
             />
           </TabsContent>
@@ -377,5 +400,3 @@ export default function PerfumeDetail() {
     </div>
   );
 }
-
-

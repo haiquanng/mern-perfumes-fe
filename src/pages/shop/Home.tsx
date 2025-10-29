@@ -63,7 +63,7 @@ export default function Home() {
             <div className="text-center md:text-left">
               <Badge className="mb-4 bg-white/20 text-white border-0 backdrop-blur">
                 <Sparkles className="w-3 h-3 mr-1" />
-                New Collection 2024
+                New Collection 2025
               </Badge>
 
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
@@ -80,20 +80,11 @@ export default function Home() {
 
               {/* Hero Search */}
               <div className="max-w-xl">
-                <div className="flex gap-2 bg-white/10 backdrop-blur-lg rounded-2xl p-2 border border-white/20">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 w-5 h-5" />
-                    <Input
-                      placeholder="Search for perfumes..."
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      className="h-12 pl-12 bg-white/5 border-0 text-white placeholder:text-white/50 focus-visible:ring-white/30"
-                    />
-                  </div>
+                <Link to="/shop" className="w-full">
                   <Button size="lg" className="bg-white text-pink-600 hover:bg-pink-50 h-12 px-8">
-                    Search
+                    Shop Now
                   </Button>
-                </div>
+                </Link>
               </div>
 
               {/* Quick Stats */}
@@ -103,7 +94,7 @@ export default function Home() {
                   <div className="text-sm text-purple-200">Products</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold">50+</div>
+                  <div className="text-3xl font-bold">10+</div>
                   <div className="text-sm text-purple-200">Brands</div>
                 </div>
                 <div>
@@ -116,16 +107,7 @@ export default function Home() {
             {/* Hero Image */}
             <div className="hidden md:block relative">
               <div className="relative">
-                {featuredPerfumes.slice(0, 1).map(perfume => (
-                  <div key={perfume._id} className="relative group">
-                    <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-2xl group-hover:bg-white/30 transition"></div>
-                    <img
-                      src={perfume.uri}
-                      alt={perfume.perfumeName}
-                      className="relative w-full max-w-md mx-auto rounded-2xl shadow-2xl transform group-hover:scale-105 transition duration-500"
-                    />
-                  </div>
-                ))}
+                <img src="/images/banner.png" alt="Hero Image" className="w-140 h-140 object-contain" />
               </div>
             </div>
           </div>
@@ -143,9 +125,9 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map((cat) => (
-            <button
+            <Link
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
+              to={cat.id ? `/shop?targetAudience=${cat.id}` : '/shop'}
               className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium whitespace-nowrap transition-all ${
                 selectedCategory === cat.id
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30'
@@ -154,7 +136,7 @@ export default function Home() {
             >
               <span className="text-lg">{cat.icon}</span>
               <span>{cat.label}</span>
-            </button>
+            </Link>
           ))}
         </div>
       </section>
@@ -204,10 +186,12 @@ export default function Home() {
               <p className="text-lg text-pink-100 mb-6">
                 Discover exclusive fragrances from luxury brands. Limited time offer!
               </p>
-              <Button size="lg" className="bg-white text-pink-600 hover:bg-pink-50">
-                Shop Now
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              <Link to="/shop">
+                <Button size="lg" className="bg-white text-pink-600 hover:bg-pink-50 h-12 px-8">
+                  Shop Now
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
             </div>
             <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20">
               <div className="absolute inset-0" style={{
@@ -255,7 +239,7 @@ export default function Home() {
             </Card>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {perfumes?.map((perfume) => (
+              {perfumes?.slice(0, 8).map((perfume) => (
                 <ProductCard key={perfume._id} perfume={perfume} to={`/perfumes/${perfume._id}`} />
               ))}
             </div>
